@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"runtime/pprof"
 	"strconv"
 	"time"
 )
@@ -25,6 +27,15 @@ func main() {
 	}
 
 	if os.Args[1] == "calculate_average" {
+
+		f, err := os.Create("cpu_profile")
+		if err != nil {
+			log.Fatalf("error creating cpu_profile file: %v\n", err)
+			os.Exit(1)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+
 		start := time.Now()
 		CalculateAverage(fileName)
 		elapsed := time.Since(start)
