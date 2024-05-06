@@ -10,6 +10,5 @@ calculate_average: build
 	./bin/1brc calculate_average
 
 build:
-	rm -r ./bin
 	@echo "building 1brc..."
 	go build -o bin/1brc .

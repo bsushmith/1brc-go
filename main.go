@@ -28,6 +28,6 @@ func main() {
 		start := time.Now()
 		CalculateAverage(fileName)
 		elapsed := time.Since(start)
-		fmt.Printf("Calculated average in %s ms\n", elapsed)
+		fmt.Printf("Calculated average in %s \n", elapsed)
 	}
 }
