@@ -3,8 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
-	"math"
 	"os"
 	"slices"
 	"strconv"
@@ -12,11 +12,11 @@ import (
 )
 
 type Station struct {
-	Name     string
-	MinTemp  float64
-	MaxTemp  float64
-	MeanTemp float64
-	count    int
+	Name    string
+	MinTemp float64
+	MaxTemp float64
+	sum     float64
+	count   int
 }
 
 func CalculateAverage(fileName string) {
@@ -28,13 +28,56 @@ func CalculateAverage(fileName string) {
 	}
 	defer f.Close()
 
-	// Read the file line by line
-	scanner := bufio.NewScanner(f)
+	reader := bufio.NewReader(f)
+	buf := make([]byte, 1<<20)
+	var position int
+	for {
+		n, err := reader.Read(buf[position:])
+		if err != nil && err != io.EOF {
+			log.Fatal("error reading file: ", err)
+		}
+		position += n
+		if err == io.EOF {
+			break
+		}
 
-	for scanner.Scan() {
-		line := scanner.Text()
+		for i := position - 1; i >= 0; i-- {
+			if buf[i] == '\n' {
+				processLines(buf[:i+1], stationMap)
+				copy(buf, buf[i+1:position])
+				position -= i + 1
+				break
+			}
+		}
+	}
+	if position > 0 {
+		processLines(buf[:position], stationMap)
+	}
+	printStations(stationMap)
+}
+
+func printStations(stationMap map[string]*Station) {
+	stationList := make([]string, len(stationMap))
+	var i int
+	for id, _ := range stationMap {
+		stationList[i] = id
+		i++
+	}
+
+	slices.Sort(stationList)
+	fmt.Printf("{")
+	for _, station := range stationList {
+		st := stationMap[station]
+		fmt.Printf("%s=%.1f/%.1f/%.1f, ", st.Name, st.MinTemp, st.sum/float64(st.count), st.MaxTemp)
+	}
+	fmt.Printf("}\n")
+}
+
+func processLines(bytes []byte, stationMap map[string]*Station) {
+	lines := strings.Split(string(bytes), "\n")
+	for _, line := range lines {
 		idx := strings.IndexByte(line, ';')
-		if idx <= 0 {
+		if idx < 0 {
 			continue
 		}
 		station, temperature := line[:idx], line[idx+1:]
@@ -43,33 +86,12 @@ func CalculateAverage(fileName string) {
 			log.Printf("error converting temperature to float: %v\n", err)
 		}
 		if val, ok := stationMap[station]; ok {
-			if val.MaxTemp < temp {
-				val.MaxTemp = temp
-			}
-			if val.MinTemp > temp {
-				val.MinTemp = temp
-			}
-			mean := ((val.MeanTemp * float64(val.count)) + temp) / (float64(val.count) + 1)
-			val.MeanTemp = math.Round(mean*10.0) / 10.0
+			val.MaxTemp = max(val.MaxTemp, temp)
+			val.MinTemp = min(val.MinTemp, temp)
+			val.sum += temp
 			val.count++
 		} else {
-			stationMap[station] = &Station{Name: station, MinTemp: temp, MaxTemp: temp, MeanTemp: temp, count: 1}
+			stationMap[station] = &Station{Name: station, MinTemp: temp, MaxTemp: temp, sum: temp, count: 1}
 		}
 	}
-	stationList := make([]Station, len(stationMap))
-	var i int
-	for _, station := range stationMap {
-		stationList[i] = *station
-		i++
-	}
-
-	slices.SortFunc(stationList, func(a, b Station) int {
-		if a.Name > b.Name {
-			return 1
-		} else if a.Name < b.Name {
-			return -1
-		}
-		return 0
-	})
-	fmt.Println(stationList)
 }
